@@ -1,0 +1,65 @@
+<html>
+<head>
+<meta charset='utf-8'>
+<title>CartoTest</title>
+<link rel="stylesheet" href="http://libs.cartocdn.com/cartodb.js/v3/3.11/themes/css/cartodb.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.2.3/leaflet.draw.css" />
+</head>
+<body>
+<div id="map"></div>
+
+<script src="http://libs.cartocdn.com/cartodb.js/v3/3.11/cartodb.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.2.3/leaflet.draw.js"></script>
+<script src="wellknown.js"></script>
+<script>
+var a,b;
+var cartouser = 'kjlr'
+
+
+var mainapp = function(vis,layers) {
+//  layers[1].getSubLayer(0).setSQL('select * from adgangsadresser WHERE vejkode=724');
+
+  map = vis.getNativeMap();
+
+  // Initialise the FeatureGroup to store editable layers
+  var drawnItems = new L.FeatureGroup();
+  map.addLayer(drawnItems);
+
+  // Initialise the draw control and pass it the FeatureGroup of editable layers
+  var drawControl = new L.Control.Draw({
+    draw: {polyline: false,
+           marker: false}
+    });
+
+  map.addControl(drawControl);
+  map.on('draw:created', function(e) {
+    var type = e.layerType,
+        layer = e.layer;
+
+    if ((type == 'polygon') || (type=='rectangle')) {
+       polywkt = wellknown.stringify(layer.toGeoJSON().geometry);
+       layers[1].getSubLayer(0)
+         .setSQL('select *  from adgangsadresser WHERE st_contains(st_geomfromtext(\''+polywkt+'\',4326 ),the_geom)');
+    }
+
+    if (type=='circle') {
+       b=layer
+       polywkt = wellknown.stringify(layer.toGeoJSON().geometry);
+       layers[1].getSubLayer(0)
+         .setSQL('select *  from adgangsadresser WHERE st_contains(st_buffer(st_geographyfromtext(\''+polywkt+'\'),'+layer.getRadius()+')::geometry,the_geom)');
+    }
+
+    url='http://kjlr.cartodb.com/api/v2/sql?q=SELECT komkode,vejkode,husnr FROM ('+layers[1].getSubLayer(0).getSQL()+') t';
+    console.log(url);
+    window.open(url,'_blank');
+    
+  });
+  
+}
+window.onload = function() {
+  a=cartodb.createVis('map', 'http://kjlr.cartodb.com/api/v2/viz/7e224e9c-a7a0-11e4-85a8-0e4fddd5de28/viz.json').done(mainapp)
+}
+</script>
+
+</body>
+</html>
